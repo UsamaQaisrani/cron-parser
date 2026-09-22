@@ -4,11 +4,16 @@ use std::fmt::Display;
 pub enum ParseError {
     OutOfRange {
         field: &'static str,
-        value: u32,
+        value: String,
         min: u32,
         max: u32,
     },
     InvalidNumber {
+        field: &'static str,
+        input: String,
+    },
+
+    InvalidRange {
         field: &'static str,
         input: String,
     },
@@ -31,6 +36,9 @@ impl Display for ParseError {
             }
             ParseError::InvalidNumber { field, input } => {
                 write!(f, "Field: {}, Expected a Number, Got: {}", field, input)
+            }
+            ParseError::InvalidRange { field, input } => {
+                write!(f, "Field: {}, Invalid range: {}", field, input)
             }
         }
     }
