@@ -17,6 +17,11 @@ pub enum ParseError {
         field: &'static str,
         input: String,
     },
+
+    InvalidStep {
+        field: &'static str,
+        input: String,
+    },
 }
 
 impl Display for ParseError {
@@ -39,6 +44,10 @@ impl Display for ParseError {
             }
             ParseError::InvalidRange { field, input } => {
                 write!(f, "Field: {}, Invalid range: {}", field, input)
+            }
+
+            ParseError::InvalidStep { field, input } => {
+                write!(f, "Field: {}, Invalid step: {}", field, input)
             }
         }
     }
