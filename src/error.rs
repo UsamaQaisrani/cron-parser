@@ -22,6 +22,10 @@ pub enum ParseError {
         field: &'static str,
         input: String,
     },
+
+    MissingField {
+        input: String,
+    },
 }
 
 impl Display for ParseError {
@@ -48,6 +52,9 @@ impl Display for ParseError {
 
             ParseError::InvalidStep { field, input } => {
                 write!(f, "Field: {}, Invalid step: {}", field, input)
+            }
+            ParseError::MissingField { input } => {
+                write!(f, "Missing Field: {}", input)
             }
         }
     }

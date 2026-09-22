@@ -1,4 +1,14 @@
-use crate::{error::ParseError, fields::FieldDef};
+use crate::{
+    error::ParseError,
+    fields::{FIELDS, FieldDef},
+};
+
+#[derive(PartialEq, Debug)]
+pub struct CronExpression {
+    pub fields: [Vec<u32>; 5],
+    pub command: String,
+}
+
 fn parse_value(text: &str, field: &FieldDef) -> Result<u32, ParseError> {
     match text.parse::<u32>() {
         Ok(num) => {
@@ -80,6 +90,30 @@ fn parse_field(text: &str, field: &FieldDef) -> Result<Vec<u32>, ParseError> {
     fields.dedup();
 
     Ok(fields)
+}
+
+fn parse_expression(text: &str) -> Result<CronExpression, ParseError> {
+    let mut rest = text.trim();
+    let mut parsed_fields: [Vec<u32>; 5] = std::array::from_fn(|_| Vec::new());
+    for i in 0..5 {
+        match rest.split_once(char::is_whitespace) {
+            Some((word, remainder)) => {
+                let parsed_field = parse_field(word, &FIELDS[i])?;
+                parsed_fields[i] = parsed_field;
+                rest = remainder.trim_start();
+            }
+            None => {
+                return Err(ParseError::MissingField {
+                    input: text.to_string(),
+                });
+            }
+        }
+    }
+
+    Ok(CronExpression {
+        fields: parsed_fields,
+        command: rest.to_string(),
+    })
 }
 
 #[cfg(test)]
@@ -381,6 +415,103 @@ mod tests {
         });
 
         let output = parse_field(input, &FIELDS[0]);
+        assert_eq!(output, expected);
+    }
+
+    #[test]
+    fn test_parse_expression_spec_example() {
+        let input = "*/15 0 1,15 * 1-5 /usr/bin/find";
+        let expected: CronExpression = CronExpression {
+            fields: [
+                vec![0, 15, 30, 45],
+                vec![0],
+                vec![1, 15],
+                vec![1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
+                vec![1, 2, 3, 4, 5],
+            ],
+            command: "/usr/bin/find".to_string(),
+        };
+        let output = parse_expression(input).unwrap();
+        assert_eq!(output, expected);
+    }
+
+    #[test]
+    fn test_parse_expression_handles_extra_whitespace() {
+        let input = "*/15  0   1 * *  cmd";
+        let expected: CronExpression = CronExpression {
+            fields: [
+                vec![0, 15, 30, 45],
+                vec![0],
+                vec![1],
+                vec![1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
+                vec![0, 1, 2, 3, 4, 5, 6],
+            ],
+            command: "cmd".to_string(),
+        };
+        let output = parse_expression(input).unwrap();
+        assert_eq!(output, expected);
+    }
+
+    #[test]
+    fn test_parse_expression_command_keeps_arguments() {
+        let input = "0 0 1 * * /usr/bin/find -name x";
+        let expected: CronExpression = CronExpression {
+            fields: [vec![], vec![], vec![], vec![], vec![]],
+            command: "/usr/bin/find -name x".to_string(),
+        };
+        let output = parse_expression(input).unwrap();
+        assert_eq!(output.command, expected.command);
+    }
+
+    #[test]
+    fn test_parse_expression_too_few_fields() {
+        let input = "0 0 1 *";
+        let expected = Err(ParseError::MissingField {
+            input: input.to_string(),
+        });
+        let output = parse_expression(input);
+        assert_eq!(output, expected);
+    }
+
+    #[test]
+    fn test_parse_expression_missing_command() {
+        let input = "0 0 1 * *";
+        let expected = Err(ParseError::MissingField {
+            input: input.to_string(),
+        });
+        let output = parse_expression(input);
+        assert_eq!(output, expected);
+    }
+
+    #[test]
+    fn test_parse_expression_empty_input() {
+        let input = "";
+        let expected = Err(ParseError::MissingField {
+            input: input.to_string(),
+        });
+        let output = parse_expression(input);
+        assert_eq!(output, expected);
+    }
+
+    #[test]
+    fn test_parse_expression_propagates_field_error() {
+        let input = "abc 0 1 * * cmd";
+        let expected = Err(ParseError::InvalidNumber {
+            field: FIELDS[0].name,
+            input: "abc".to_string(),
+        });
+        let output = parse_expression(input);
+        assert_eq!(output, expected);
+    }
+
+    #[test]
+    fn test_parse_expression_error_names_correct_field() {
+        let input = "0 abc 1 * * cmd";
+        let expected = Err(ParseError::InvalidNumber {
+            field: FIELDS[1].name,
+            input: "abc".to_string(),
+        });
+        let output = parse_expression(input);
         assert_eq!(output, expected);
     }
 }
