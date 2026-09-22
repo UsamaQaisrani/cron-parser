@@ -67,6 +67,21 @@ fn parse_step(text: &str, field: &FieldDef) -> Result<Vec<u32>, ParseError> {
     }
 }
 
+fn parse_field(text: &str, field: &FieldDef) -> Result<Vec<u32>, ParseError> {
+    let parts: Vec<&str> = text.split(',').collect();
+    let mut fields: Vec<u32> = Vec::new();
+
+    for part in parts {
+        let mut res = parse_step(part, field)?;
+        fields.append(&mut res);
+    }
+
+    fields.sort();
+    fields.dedup();
+
+    Ok(fields)
+}
+
 #[cfg(test)]
 mod tests {
     use crate::fields::FIELDS;
@@ -297,6 +312,75 @@ mod tests {
             input: "0".to_string(),
         });
         let output = parse_step(input, &FIELDS[0]);
+        assert_eq!(output, expected);
+    }
+
+    #[test]
+    fn test_parse_field_single_value() {
+        let input = "5";
+        let expected = [5];
+
+        let output = parse_field(input, &FIELDS[0]).unwrap();
+        assert_eq!(output, expected);
+    }
+
+    #[test]
+    fn test_parse_field_list_of_value_and_range() {
+        let input = "1,5-7";
+        let expected = [1, 5, 6, 7];
+
+        let output = parse_field(input, &FIELDS[0]).unwrap();
+        assert_eq!(output, expected);
+    }
+
+    #[test]
+    fn test_parse_field_removes_duplicates() {
+        let input = "1-5,3";
+        let expected = [1, 2, 3, 4, 5];
+
+        let output = parse_field(input, &FIELDS[0]).unwrap();
+        assert_eq!(output, expected);
+    }
+
+    #[test]
+    fn test_parse_field_sorts_values() {
+        let input = "30,0,15";
+        let expected = [0, 15, 30];
+
+        let output = parse_field(input, &FIELDS[0]).unwrap();
+        assert_eq!(output, expected);
+    }
+
+    #[test]
+    fn test_parse_field_list_with_step() {
+        let input = "*/20,0";
+        let expected = [0, 20, 40];
+
+        let output = parse_field(input, &FIELDS[0]).unwrap();
+        assert_eq!(output, expected);
+    }
+
+    #[test]
+    fn test_parse_field_propagates_error() {
+        let input = "1,abc";
+        let expected = Err(ParseError::InvalidNumber {
+            field: FIELDS[0].name,
+            input: "abc".to_string(),
+        });
+
+        let output = parse_field(input, &FIELDS[0]);
+        assert_eq!(output, expected);
+    }
+
+    #[test]
+    fn test_parse_field_empty_piece_returns_error() {
+        let input = "1,,2";
+        let expected = Err(ParseError::InvalidNumber {
+            field: FIELDS[0].name,
+            input: "".to_string(),
+        });
+
+        let output = parse_field(input, &FIELDS[0]);
         assert_eq!(output, expected);
     }
 }
