@@ -1,7 +1,7 @@
 pub struct FieldDef {
     pub name: &'static str,
-    pub min: u8,
-    pub max: u8,
+    pub min: u32,
+    pub max: u32,
 }
 
 pub const FIELDS: [FieldDef; 5] = [
