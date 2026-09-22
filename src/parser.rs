@@ -92,7 +92,7 @@ fn parse_field(text: &str, field: &FieldDef) -> Result<Vec<u32>, ParseError> {
     Ok(fields)
 }
 
-fn parse_expression(text: &str) -> Result<CronExpression, ParseError> {
+pub fn parse_expression(text: &str) -> Result<CronExpression, ParseError> {
     let mut rest = text.trim();
     let mut parsed_fields: [Vec<u32>; 5] = std::array::from_fn(|_| Vec::new());
     for i in 0..5 {
